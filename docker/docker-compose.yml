@@ -188,22 +188,17 @@ services:
     networks:
       - smartcity-net
     restart: on-failure
-
-  # ── Airflow Init ──────────────────────────────────────────────────────────────
+    
+# ── Airflow Init ──────────────────────────────────────────────────────────────
   airflow-init:
     <<: *airflow-common
     container_name: airflow-init
     entrypoint: ["/bin/bash", "-c"]
     command: |
-      "
-      pip install psycopg2-binary pandas --quiet
-      airflow db migrate
-      airflow users create \
-        --username admin --password admin123 \
-        --firstname Admin --lastname User \
-        --role Admin --email admin@smartcity.lk
+      pip install psycopg2-binary pandas --quiet &&
+      airflow db migrate &&
+      airflow users create --username admin --password admin123 --firstname Admin --lastname User --role Admin --email admin@smartcity.lk &&
       echo 'Airflow initialised.'
-      "
 
   # ── Airflow Scheduler ─────────────────────────────────────────────────────────
   airflow-scheduler:
