@@ -24,6 +24,7 @@ x-airflow-common: &airflow-common
 
 services:
 
+  # ── Zookeeper ─────────────────────────────────────────────────────────────────
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
     container_name: zookeeper
@@ -38,6 +39,7 @@ services:
     networks:
       - smartcity-net
 
+  # ── Kafka ─────────────────────────────────────────────────────────────────────
   kafka:
     image: confluentinc/cp-kafka:7.6.1
     container_name: kafka
@@ -64,6 +66,7 @@ services:
     networks:
       - smartcity-net
 
+  # ── Kafka Topic Init ──────────────────────────────────────────────────────────
   kafka-init:
     image: confluentinc/cp-kafka:7.6.1
     container_name: kafka-init
@@ -84,6 +87,7 @@ services:
     networks:
       - smartcity-net
 
+  # ── PostgreSQL ────────────────────────────────────────────────────────────────
   postgres:
     image: postgres:15-alpine
     container_name: postgres
@@ -105,34 +109,41 @@ services:
     networks:
       - smartcity-net
 
+  # ── Spark Master ──────────────────────────────────────────────────────────────
   spark-master:
-    image: docker.io/bitnami/spark:4.1
+    image: apache/spark:3.5.1-python3
     container_name: spark-master
+    entrypoint: ["/bin/bash", "-c"]
+    command: |
+      "/opt/spark/sbin/start-master.sh && tail -f /opt/spark/logs/*"
     environment:
-      SPARK_MODE: master
-      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
-      SPARK_RPC_ENCRYPTION_ENABLED: "no"
+      SPARK_MASTER_HOST: spark-master
+      SPARK_MASTER_PORT: "7077"
+      SPARK_MASTER_WEBUI_PORT: "8080"
     ports:
       - "8080:8080"
       - "7077:7077"
     networks:
       - smartcity-net
 
+  # ── Spark Worker ──────────────────────────────────────────────────────────────
   spark-worker:
-    image: docker.io/bitnami/spark:4.1
+    image: apache/spark:3.5.1-python3
     container_name: spark-worker
     depends_on:
       - spark-master
+    entrypoint: ["/bin/bash", "-c"]
+    command: |
+      "/opt/spark/sbin/start-worker.sh spark://spark-master:7077 && tail -f /opt/spark/logs/*"
     environment:
-      SPARK_MODE: worker
-      SPARK_MASTER_URL: spark://spark-master:7077
-      SPARK_WORKER_MEMORY: 2G
-      SPARK_WORKER_CORES: 2
+      SPARK_WORKER_MEMORY: 2g
+      SPARK_WORKER_CORES: "2"
     networks:
       - smartcity-net
 
+  # ── Spark Streaming Job ───────────────────────────────────────────────────────
   spark-stream:
-    image: docker.io/bitnami/spark:4.1
+    image: apache/spark:3.5.1-python3
     container_name: spark-stream
     depends_on:
       kafka:
@@ -154,15 +165,16 @@ services:
     command: |
       "
       pip install kafka-python --quiet
-      spark-submit \
+      /opt/spark/bin/spark-submit \
         --master spark://spark-master:7077 \
-        --packages org.apache.spark:spark-sql-kafka-0-10_2.13:3.5.4,org.postgresql:postgresql:42.6.0 \
+        --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,org.postgresql:postgresql:42.6.0 \
         --conf spark.sql.streaming.checkpointLocation=/tmp/spark_checkpoints \
         /opt/spark_app/spark_stream.py
       "
     networks:
       - smartcity-net
 
+  # ── Traffic Producer ──────────────────────────────────────────────────────────
   producer:
     build:
       context: ../producer
@@ -177,6 +189,7 @@ services:
       - smartcity-net
     restart: on-failure
 
+  # ── Airflow Init ──────────────────────────────────────────────────────────────
   airflow-init:
     <<: *airflow-common
     container_name: airflow-init
@@ -192,6 +205,7 @@ services:
       echo 'Airflow initialised.'
       "
 
+  # ── Airflow Scheduler ─────────────────────────────────────────────────────────
   airflow-scheduler:
     <<: *airflow-common
     container_name: airflow-scheduler
@@ -201,6 +215,7 @@ services:
         condition: service_completed_successfully
     restart: on-failure
 
+  # ── Airflow Webserver ─────────────────────────────────────────────────────────
   airflow-webserver:
     <<: *airflow-common
     container_name: airflow-webserver
