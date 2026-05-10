@@ -1,10 +1,3 @@
-version: "3.9"
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  Smart City Traffic Pipeline — Docker Compose
-#  Services: Zookeeper · Kafka · Spark · PostgreSQL · Airflow
-# ══════════════════════════════════════════════════════════════════════════════
-
 x-airflow-common: &airflow-common
   image: apache/airflow:2.8.1-python3.11
   environment:
@@ -20,8 +13,8 @@ x-airflow-common: &airflow-common
     PG_PASS: admin123
     REPORT_DIR: /opt/airflow/reports
   volumes:
-    - ./airflow/dags:/opt/airflow/dags
-    - ./reports:/opt/airflow/reports
+    - ../airflow/dags:/opt/airflow/dags
+    - ../reports:/opt/airflow/reports
     - airflow-logs:/opt/airflow/logs
   depends_on:
     postgres:
@@ -31,9 +24,8 @@ x-airflow-common: &airflow-common
 
 services:
 
-  # ── Zookeeper ────────────────────────────────────────────────────────────────
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.3
+    image: confluentinc/cp-zookeeper:7.6.1
     container_name: zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
@@ -46,16 +38,15 @@ services:
     networks:
       - smartcity-net
 
-  # ── Kafka ────────────────────────────────────────────────────────────────────
   kafka:
-    image: confluentinc/cp-kafka:7.5.3
+    image: confluentinc/cp-kafka:7.6.1
     container_name: kafka
     depends_on:
       zookeeper:
         condition: service_healthy
     ports:
       - "9092:9092"
-      - "9093:9093"   # external access
+      - "9093:9093"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -73,9 +64,8 @@ services:
     networks:
       - smartcity-net
 
-  # ── Kafka Topic Init ──────────────────────────────────────────────────────────
   kafka-init:
-    image: confluentinc/cp-kafka:7.5.3
+    image: confluentinc/cp-kafka:7.6.1
     container_name: kafka-init
     depends_on:
       kafka:
@@ -83,7 +73,7 @@ services:
     entrypoint: ["/bin/bash", "-c"]
     command: |
       "
-      echo 'Creating Kafka topics …'
+      echo 'Creating Kafka topics ...'
       kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists \
         --topic traffic-raw --partitions 4 --replication-factor 1
       kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists \
@@ -94,7 +84,6 @@ services:
     networks:
       - smartcity-net
 
-  # ── PostgreSQL ───────────────────────────────────────────────────────────────
   postgres:
     image: postgres:15-alpine
     container_name: postgres
@@ -106,8 +95,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./docker/postgres_init.sql:/docker-entrypoint-initdb.d/01_init.sql
-      - ./docker/create_multiple_dbs.sh:/docker-entrypoint-initdb.d/00_create_dbs.sh
+      - ./postgres_init.sql:/docker-entrypoint-initdb.d/01_init.sql
+      - ./create_multiple_dbs.sh:/docker-entrypoint-initdb.d/00_create_dbs.sh
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d smartcity"]
       interval: 10s
@@ -116,23 +105,21 @@ services:
     networks:
       - smartcity-net
 
-  # ── Spark Master ──────────────────────────────────────────────────────────────
   spark-master:
-    image: bitnami/spark:3.4.2
+    image: docker.io/bitnami/spark:4.1
     container_name: spark-master
     environment:
       SPARK_MODE: master
       SPARK_RPC_AUTHENTICATION_ENABLED: "no"
       SPARK_RPC_ENCRYPTION_ENABLED: "no"
     ports:
-      - "8080:8080"    # Spark Web UI
-      - "7077:7077"    # Spark master port
+      - "8080:8080"
+      - "7077:7077"
     networks:
       - smartcity-net
 
-  # ── Spark Worker ──────────────────────────────────────────────────────────────
   spark-worker:
-    image: bitnami/spark:3.4.2
+    image: docker.io/bitnami/spark:4.1
     container_name: spark-worker
     depends_on:
       - spark-master
@@ -144,9 +131,8 @@ services:
     networks:
       - smartcity-net
 
-  # ── Spark Streaming Job ───────────────────────────────────────────────────────
   spark-stream:
-    image: bitnami/spark:3.4.2
+    image: docker.io/bitnami/spark:4.1
     container_name: spark-stream
     depends_on:
       kafka:
@@ -162,7 +148,7 @@ services:
       PG_USER: admin
       PG_PASS: admin123
     volumes:
-      - ./spark_processing:/opt/spark_app
+      - ../spark_processing:/opt/spark_app
       - spark-checkpoints:/tmp/spark_checkpoints
     entrypoint: ["/bin/bash", "-c"]
     command: |
@@ -170,17 +156,16 @@ services:
       pip install kafka-python --quiet
       spark-submit \
         --master spark://spark-master:7077 \
-        --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.2,org.postgresql:postgresql:42.6.0 \
+        --packages org.apache.spark:spark-sql-kafka-0-10_2.13:3.5.4,org.postgresql:postgresql:42.6.0 \
         --conf spark.sql.streaming.checkpointLocation=/tmp/spark_checkpoints \
         /opt/spark_app/spark_stream.py
       "
     networks:
       - smartcity-net
 
-  # ── Traffic Producer ──────────────────────────────────────────────────────────
   producer:
     build:
-      context: ./producer
+      context: ../producer
       dockerfile: Dockerfile
     container_name: traffic-producer
     depends_on:
@@ -192,7 +177,6 @@ services:
       - smartcity-net
     restart: on-failure
 
-  # ── Airflow Init ──────────────────────────────────────────────────────────────
   airflow-init:
     <<: *airflow-common
     container_name: airflow-init
@@ -208,7 +192,6 @@ services:
       echo 'Airflow initialised.'
       "
 
-  # ── Airflow Scheduler ─────────────────────────────────────────────────────────
   airflow-scheduler:
     <<: *airflow-common
     container_name: airflow-scheduler
@@ -218,13 +201,12 @@ services:
         condition: service_completed_successfully
     restart: on-failure
 
-  # ── Airflow Webserver ─────────────────────────────────────────────────────────
   airflow-webserver:
     <<: *airflow-common
     container_name: airflow-webserver
     command: webserver
     ports:
-      - "8081:8080"    # Airflow UI → http://localhost:8081
+      - "8081:8080"
     depends_on:
       airflow-init:
         condition: service_completed_successfully
