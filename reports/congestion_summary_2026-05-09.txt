@@ -1,0 +1,45 @@
+=================================================================
+  SMART CITY TRAFFIC CONGESTION SUMMARY — 2026-05-09
+=================================================================
+
+PEAK HOURS (highest vehicle count per junction):
+-----------------------------------------------------------------
+  J001 | Galle Face
+    Peak Hour  : 08:00
+    Vehicles   : 280
+    Avg Speed  : 12.1 km/h
+    Cong. Index: 85.1 (SEVERE)
+
+  J002 | Pettah
+    Peak Hour  : 08:00
+    Vehicles   : 310
+    Avg Speed  : 10.5 km/h
+    Cong. Index: 89.2 (SEVERE)
+
+  J003 | Union Place
+    Peak Hour  : 17:00
+    Vehicles   : 130
+    Avg Speed  : 25.0 km/h
+    Cong. Index: 47.2 (MODERATE)
+
+  J004 | Nugegoda
+    Peak Hour  : 08:00
+    Vehicles   : 270
+    Avg Speed  : 14.0 km/h
+    Cong. Index: 80.5 (SEVERE)
+
+CRITICAL ALERTS (avg_speed < 10 km/h):
+-----------------------------------------------------------------
+  J001 | Galle Face     | 07.2 km/h | 08:15 | CRITICAL
+  J002 | Pettah         | 05.1 km/h | 08:35 | CRITICAL
+  J004 | Nugegoda       | 08.9 km/h | 17:45 | CRITICAL
+
+POLICE INTERVENTION REQUIRED TOMORROW:
+-----------------------------------------------------------------
+  ⚠  J001 — Galle Face - Marine Drive  (Peak CI: 85.1 — SEVERE)
+  ⚠  J002 — Pettah - Manning Market    (Peak CI: 89.2 — SEVERE)
+  ⚠  J004 — Nugegoda - High Level Road (Peak CI: 80.5 — SEVERE)
+
+=================================================================
+  END OF REPORT
+=================================================================
